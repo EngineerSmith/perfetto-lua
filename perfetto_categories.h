@@ -3,9 +3,11 @@
 
 #include <perfetto.h>
 
+// https://github.com/google/perfetto/blob/main/examples/sdk/trace_categories.h
+
 PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category("perfetto-lua")
-        .SetDescription("LuaJIT Tracing")
+        .SetDescription("Lua Tracing")
 );
 
 #endif
