@@ -82,6 +82,7 @@ PL_EXPORT void pl_trace_instant(const char* cat, const char* name) {
     TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name));
 }
 
+// Attempt to use the category to resolve the linking error
 PL_EXPORT void pl_test() {
     TRACE_EVENT_BEGIN("perfetto-lua", "test");
     TRACE_EVENT_END("perfetto-lua");
