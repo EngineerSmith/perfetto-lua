@@ -1,5 +1,6 @@
 #include <perfetto.h>
 #include <fcntl.h>
+#include <cstdarg>
 
 #if defined(_WIN32)
     #include <io.h>
@@ -88,7 +89,7 @@ PL_EXPORT void pl_setThreadName(const char* name) {
     );
 }
 
-enum pl_counterUnits {
+enum class pl_counterUnits {
     // Memory
     bytes,
     kilobytes,
@@ -105,6 +106,13 @@ enum pl_counterUnits {
 
     // Generic Counter
     count,
+};
+
+enum class pl_traceType {
+    None = 0,
+    typeBool,
+    typeDouble,
+    typeStr,
 };
 
 PL_EXPORT void pl_trace_beginEvent(const char* cat, const char* name) {
@@ -129,6 +137,41 @@ PL_EXPORT void pl_trace_beginEvent_flowEnd(const char* cat, const char* name, ui
 PL_EXPORT void pl_trace_endEvent(const char* cat) {
     perfetto::DynamicCategory dCat{ cat };
     TRACE_EVENT_END(dCat);
+}
+
+PL_EXPORT void pl_trace_endEvent_var(const char* cat, ...) {
+    perfetto::DynamicCategory dCat{ cat };
+
+    va_list args;
+    va_start(args, cat);
+
+    TRACE_EVENT_END(dCat, [&](perfetto::EventContext ctx) {
+        while (true) {
+            pl_traceType type = static_cast<pl_traceType>(va_arg(args, int));
+            if (type == pl_traceType::None)
+                break;
+
+            const char* key = va_arg(args, const char*);
+            if (!key) break;
+
+            auto* debug = ctx.event()->add_debug_annotations();
+            debug->set_name(key);
+
+            switch(type) {
+                case pl_traceType::typeBool:
+                    debug->set_bool_value(va_arg(args, int) != 0);
+                    break;
+                case pl_traceType::typeDouble:
+                    debug->set_double_value(va_arg(args, double));
+                    break;
+                case pl_traceType::typeStr:
+                    debug->set_string_value(va_arg(args, const char*));
+                    break;
+            }
+        }
+    });
+
+    va_end(args);
 }
 
 PL_EXPORT void pl_trace_counter(const char* cat, const char* name, double value) {
@@ -208,6 +251,18 @@ PL_EXPORT void pl_trace_instant(const char* cat, const char* name) {
     TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name));
 }
 
+PL_EXPORT void pl_trace_instant_flowStart(const char* cat, const char* name, uint64_t flowID) {
+    perfetto::DynamicCategory dCat{ cat };
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+        perfetto::Flow::ProcessScoped(flowID)
+    );
+}
 
+PL_EXPORT void pl_trace_instant_flowEnd(const char* cat, const char* name, uint64_t flowID) {
+    perfetto::DynamicCategory dCat{ cat };
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+        perfetto::TerminatingFlow::ProcessScoped(flowID)
+    );
+}
 
 }
