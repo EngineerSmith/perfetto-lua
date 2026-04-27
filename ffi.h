@@ -18,7 +18,7 @@ typedef enum {
 typedef enum {
   TYPE_END,
   TYPE_BOOL,
-  TYPE_NUMBER,
+  TYPE_DOUBLE,
   TYPE_STRING,
 } pl_traceType;
 
@@ -34,6 +34,9 @@ void pl_trace_beginEvent(const char* category, const char* name);
 void pl_trace_beginEvent_flowStart(const char* category, const char* name, uint64_t flowID);
 void pl_trace_beginEvent_flowEnd(const char* category, const char* name, uint64_t flowID);
 void pl_trace_endEvent(const char* category);
+void pl_trace_endEvent_double(const char* category, const char* key, double value);
+void pl_trace_endEvent_bool(const char* category, const char* key, bool value);
+void pl_trace_endEvent_string(const char* category, const char* key, const char* value);
 void pl_trace_endEvent_varargs(const char* category, ...);
 
 void pl_trace_counter(const char* category, const char* name, double value);

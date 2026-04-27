@@ -112,7 +112,7 @@ enum class pl_traceType {
     None = 0,
     typeBool,
     typeDouble,
-    typeStr,
+    typeString,
 };
 
 inline void pl_parse_varargs(perfetto::EventContext& ctx, va_list* args) {
@@ -134,7 +134,7 @@ inline void pl_parse_varargs(perfetto::EventContext& ctx, va_list* args) {
             case pl_traceType::typeDouble:
                 debug->set_double_value(va_arg(args, double));
                 break;
-            case pl_traceType::typeStr:
+            case pl_traceType::typeString:
                 debug->set_string_value(va_arg(args, const char*));
                 break;
         }
@@ -163,6 +163,33 @@ PL_EXPORT void pl_trace_beginEvent_flowEnd(const char* cat, const char* name, ui
 PL_EXPORT void pl_trace_endEvent(const char* cat) {
     perfetto::DynamicCategory dCat{ cat };
     TRACE_EVENT_END(dCat);
+}
+
+PL_EXPORT void pl_trace_endEvent_double(const char* cat, const char* key, double value) {
+    perfetto::DynamicCategory dCat{ cat };
+    TRACE_EVENT_END(dCat, [&](perfetto::EventContext ctx) {
+        auto* debug = ctx.event()->add_debug_annotations();
+        debug->set_name(key);
+        debug->set_double_value(value);
+    });
+}
+
+PL_EXPORT void pl_trace_endEvent_bool(const char* cat, const char* key, bool value) {
+    perfetto::DynamicCategory dCat{ cat };
+    TRACE_EVENT_END(dCat, [&](perfetto::EventContext ctx) {
+        auto* debug = ctx.event()->add_debug_annotations();
+        debug->set_name(key);
+        debug->set_bool_value(value);
+    });
+}
+
+PL_EXPORT void pl_trace_endEvent_string(const char* cat, const char* key, const char* value) {
+    perfetto::DynamicCategory dCat{ cat };
+    TRACE_EVENT_END(dCat, [&](perfetto::EventContext ctx) {
+        auto* debug = ctx.event()->add_debug_annotations();
+        debug->set_name(key);
+        debug->set_string_value(value);
+    });
 }
 
 PL_EXPORT void pl_trace_endEvent_varargs(const char* cat, ...) {
