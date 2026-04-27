@@ -16,6 +16,7 @@ typedef enum {
 } pl_counterUnits;
 
 typedef enum {
+  TYPE_END,
   TYPE_BOOL,
   TYPE_NUMBER,
   TYPE_STRING,
@@ -40,5 +41,8 @@ void pl_trace_counter_unit(const char* category, const char* name, double value,
 void pl_trace_counter_count(const char* category, const char* name, double value, int64_t multiplier);
 
 void pl_trace_instant(const char* category, const char* name);
+void pl_trace_instant_varargs(const char* category, const char* name, ...);
 void pl_trace_instant_flowStart(const char* category, const char* name, uint64_t flowID);
+void pl_trace_instant_flowStart_varargs(const char* category, const char* name, uint64_t flowID, ...);
 void pl_trace_instant_flowEnd(const char* category, const char* name, uint64_t flowID);
+void pl_trace_instant_flowEnd_varargs(const char* category, const char* name, uint64_t flowID, ...);

@@ -115,6 +115,32 @@ enum class pl_traceType {
     typeStr,
 };
 
+inline void pl_parse_varargs(perfetto::EventContext& ctx, va_list* args) {
+    while (true) {
+        pl_traceType type = static_cast<pl_traceType>(va_arg(args, int));
+        if (type == pl_traceType::None)
+            break;
+
+        const char* key = va_arg(args, const char*);
+        if (!key) break;
+
+        auto* debug = ctx.event()->add_debug_annotations();
+        debug->set_name(key);
+
+        switch(type) {
+            case pl_traceType::typeBool:
+                debug->set_bool_value(va_arg(args, int) != 0);
+                break;
+            case pl_traceType::typeDouble:
+                debug->set_double_value(va_arg(args, double));
+                break;
+            case pl_traceType::typeStr:
+                debug->set_string_value(va_arg(args, const char*));
+                break;
+        }
+    }
+}
+
 PL_EXPORT void pl_trace_beginEvent(const char* cat, const char* name) {
     perfetto::DynamicCategory dCat{ cat };
     TRACE_EVENT_BEGIN(dCat, perfetto::DynamicString(name));
@@ -139,36 +165,14 @@ PL_EXPORT void pl_trace_endEvent(const char* cat) {
     TRACE_EVENT_END(dCat);
 }
 
-PL_EXPORT void pl_trace_endEvent_var(const char* cat, ...) {
+PL_EXPORT void pl_trace_endEvent_varargs(const char* cat, ...) {
     perfetto::DynamicCategory dCat{ cat };
 
     va_list args;
     va_start(args, cat);
 
     TRACE_EVENT_END(dCat, [&](perfetto::EventContext ctx) {
-        while (true) {
-            pl_traceType type = static_cast<pl_traceType>(va_arg(args, int));
-            if (type == pl_traceType::None)
-                break;
-
-            const char* key = va_arg(args, const char*);
-            if (!key) break;
-
-            auto* debug = ctx.event()->add_debug_annotations();
-            debug->set_name(key);
-
-            switch(type) {
-                case pl_traceType::typeBool:
-                    debug->set_bool_value(va_arg(args, int) != 0);
-                    break;
-                case pl_traceType::typeDouble:
-                    debug->set_double_value(va_arg(args, double));
-                    break;
-                case pl_traceType::typeStr:
-                    debug->set_string_value(va_arg(args, const char*));
-                    break;
-            }
-        }
+        pl_parse_varargs(ctx, &args);
     });
 
     va_end(args);
@@ -251,6 +255,19 @@ PL_EXPORT void pl_trace_instant(const char* cat, const char* name) {
     TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name));
 }
 
+PL_EXPORT void pl_trace_instant_varargs(const char* cat, const char* name, ...) {
+    perfetto::DynamicCategory dCat{ cat };
+
+    va_list args;
+    va_start(args, name);
+
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), [&](perfetto::EventContext ctx) {
+        pl_parse_varargs(ctx, &args);
+    });
+
+    va_end(args);
+}
+
 PL_EXPORT void pl_trace_instant_flowStart(const char* cat, const char* name, uint64_t flowID) {
     perfetto::DynamicCategory dCat{ cat };
     TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
@@ -258,11 +275,43 @@ PL_EXPORT void pl_trace_instant_flowStart(const char* cat, const char* name, uin
     );
 }
 
+PL_EXPORT void pl_trace_instant_flowStart_varargs(const char* cat, const char* name, uint64_t flowID, ...) {
+    perfetto::DynamicCategory dCat{ cat };
+
+    va_list args;
+    va_start(args, flowID);
+
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+        perfetto::Flow::ProcessScoped(flowID),
+        [&](perfetto::EventContext ctx) {
+            pl_parse_varargs(ctx, &args);
+        }
+    );
+
+    va_end(args);
+}
+
 PL_EXPORT void pl_trace_instant_flowEnd(const char* cat, const char* name, uint64_t flowID) {
     perfetto::DynamicCategory dCat{ cat };
     TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
         perfetto::TerminatingFlow::ProcessScoped(flowID)
     );
+}
+
+PL_EXPORT void pl_trace_instant_flowEnd_varargs(const char* cat, const char* name, uint64_t flowID, ...) {
+    perfetto::DynamicCategory dCat{ cat };
+
+    va_list args;
+    va_start(args, flowID);
+
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+        perfetto::TerminatingFlow::ProcessScoped(flowID),
+        [&](perfetto::EventContext ctx) {
+            pl_parse_varargs(ctx, &args);
+        }
+    );
+
+    va_end(args);
 }
 
 }
