@@ -90,21 +90,8 @@ PL_EXPORT void pl_setThreadName(const char* name) {
 }
 
 enum class pl_counterUnits {
-    // Memory
     bytes,
-    kilobytes,
-    megabytes,
-    gigabytes,
-
-    // Time
     nanoseconds,
-    microseconds,
-    milliseconds,
-    seconds,
-    minutes,
-    hours,
-
-    // Generic Counter
     count,
 };
 
@@ -216,51 +203,14 @@ PL_EXPORT void pl_trace_counter_unit(const char* cat, const char* name, double v
     auto track = perfetto::CounterTrack(perfetto::DynamicString(name));
 
     switch(units) {
-        // Memory
         case pl_counterUnits::bytes:
             track.set_unit(perfetto::CounterTrack::Unit::UNIT_SIZE_BYTES);
             break;
-        case pl_counterUnits::kilobytes:
-            track.set_unit(perfetto::CounterTrack::Unit::UNIT_SIZE_BYTES);
-            track.set_unit_multiplier(1024LL);
-            break;
-        case pl_counterUnits::megabytes:
-            track.set_unit(perfetto::CounterTrack::Unit::UNIT_SIZE_BYTES);
-            track.set_unit_multiplier(1024LL * 1024);
-            break;
-        case pl_counterUnits::gigabytes:
-            track.set_unit(perfetto::CounterTrack::Unit::UNIT_SIZE_BYTES);
-            track.set_unit_multiplier(1024LL * 1024 * 1024);
-            break;
-
-        // Time
         case pl_counterUnits::nanoseconds:
             track.set_unit(perfetto::CounterTrack::Unit::UNIT_TIME_NS);
             break;
-        case pl_counterUnits::microseconds:
-            track.set_unit(perfetto::CounterTrack::Unit::UNIT_TIME_NS);
-            track.set_unit_multiplier(1000LL);
-            break;
-        case pl_counterUnits::milliseconds:
-            track.set_unit(perfetto::CounterTrack::Unit::UNIT_TIME_NS);
-            track.set_unit_multiplier(1000LL * 1000);
-            break;
-        case pl_counterUnits::seconds:
-            track.set_unit(perfetto::CounterTrack::Unit::UNIT_TIME_NS);
-            track.set_unit_multiplier(1000LL * 1000 * 1000);
-            break;
-        case pl_counterUnits::minutes:
-            track.set_unit(perfetto::CounterTrack::Unit::UNIT_TIME_NS);
-            track.set_unit_multiplier(60LL * 1000 * 1000 * 1000);
-            break;
-        case pl_counterUnits::hours:
-            track.set_unit(perfetto::CounterTrack::Unit::UNIT_TIME_NS);
-            track.set_unit_multiplier(3600LL * 1000 * 1000 * 1000);
-            break;
-
-        // Generic Count
-        case pl_counterUnits::count:
         default:
+        case pl_counterUnits::count:
             track.set_unit(perfetto::CounterTrack::Unit::UNIT_COUNT);
     }
 
@@ -280,6 +230,39 @@ PL_EXPORT void pl_trace_counter_count(const char* cat, const char* name, double 
 PL_EXPORT void pl_trace_instant(const char* cat, const char* name) {
     perfetto::DynamicCategory dCat{ cat };
     TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name));
+}
+
+PL_EXPORT void pl_trace_instant_double(const char* cat, const char* name, const char* key, double value) {
+    perfetto::DynamicCategory dCat{ cat };
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+        [&](perfetto::EventContext ctx) {
+            auto* debug = ctx.event()->add_debug_annotations();
+            debug->set_name(key);
+            debug->set_double_value(value);
+        }
+    );
+}
+
+PL_EXPORT void pl_trace_instant_bool(const char* cat, const char* name, const char* key, bool value) {
+    perfetto::DynamicCategory dCat{ cat };
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+        [&](perfetto::EventContext ctx) {
+            auto* debug = ctx.event()->add_debug_annotations();
+            debug->set_name(key);
+            debug->set_bool_value(value);
+        }
+    );
+}
+
+PL_EXPORT void pl_trace_instant_string(const char* cat, const char* name, const char* key, const char* value) {
+    perfetto::DynamicCategory dCat{ cat };
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+        [&](perfetto::EventContext ctx) {
+            auto* debug = ctx.event()->add_debug_annotations();
+            debug->set_name(key);
+            debug->set_string_value(value);
+        }
+    );
 }
 
 PL_EXPORT void pl_trace_instant_varargs(const char* cat, const char* name, ...) {

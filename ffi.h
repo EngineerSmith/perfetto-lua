@@ -1,17 +1,6 @@
 typedef enum {
-  // Memory
   UNIT_BYTES,
-  UNIT_KILOBYTES,
-  UNIT_MEGABYTES,
-  UNIT_GIGABYTES,
-  // Time
   UNIT_NANOSECONDS,
-  UNIT_MICROSECONDS,
-  UNIT_MILLISECONDS,
-  UNIT_SECONDS,
-  UNIT_MINUTES,
-  UNIT_HOURS,
-  // Generic
   UNIT_COUNT,
 } pl_counterUnits;
 
@@ -44,6 +33,9 @@ void pl_trace_counter_unit(const char* category, const char* name, double value,
 void pl_trace_counter_count(const char* category, const char* name, double value, int64_t multiplier);
 
 void pl_trace_instant(const char* category, const char* name);
+void pl_trace_instant_double(const char* category, const char* name, const char* key, double value);
+void pl_trace_instant_bool(const char* category, const char* name, const char* key, bool value);
+void pl_trace_instant_string(const char* category, const char* name, const char* key, const char* value);
 void pl_trace_instant_varargs(const char* category, const char* name, ...);
 void pl_trace_instant_flowStart(const char* category, const char* name, uint64_t flowID);
 void pl_trace_instant_flowStart_varargs(const char* category, const char* name, uint64_t flowID, ...);
