@@ -19,6 +19,8 @@
 // https://perfetto.dev/docs/instrumentation/tracing-sdk
 // https://perfetto.dev/docs/instrumentation/track-events
 
+#define GLOBAL_TRACK_ID 471353371973
+
 extern "C" {
 
 static std::unique_ptr<perfetto::TracingSession> g_tracing_session;
@@ -29,6 +31,10 @@ PL_EXPORT void pl_initializePerfetto() { // Ran once per process
     args.backends |= perfetto::kInProcessBackend;
     perfetto::Tracing::Initialize(args);
     perfetto::TrackEvent::Register();
+
+    auto desc = perfetto::Track(GLOBAL_TRACK_ID).Serialize();
+    desc.set_name("Global Events");
+    perfetto::TrackEvent::SetTrackDescriptor(perfetto::Track(GLOBAL_TRACK_ID), desc);
 }
 
 // Bool = success
@@ -102,6 +108,12 @@ enum class pl_traceType {
     typeString,
 };
 
+enum class pl_instantScope {
+    thread,
+    process,
+    global,
+};
+
 inline void pl_parse_varargs(perfetto::EventContext& ctx, va_list* args) {
     while (true) {
         pl_traceType type = static_cast<pl_traceType>(va_arg(args, int));
@@ -125,6 +137,18 @@ inline void pl_parse_varargs(perfetto::EventContext& ctx, va_list* args) {
                 debug->set_string_value(va_arg(args, const char*));
                 break;
         }
+    }
+}
+
+inline perfetto::Track pl_getInstantTrack(pl_instantScope scope) {
+    switch(scope) {
+        default:
+        case pl_instantScope::thread:
+            return perfetto::ThreadTrack::Current();
+        case pl_instantScope::process:
+            return perfetto::ProcessTrack::Current();
+        case pl_instantScope::global:
+            return perfetto::Track(GLOBAL_TRACK_ID);
     }
 }
 
@@ -227,14 +251,14 @@ PL_EXPORT void pl_trace_counter_count(const char* cat, const char* name, double 
     TRACE_COUNTER(dCat, track, value);
 }
 
-PL_EXPORT void pl_trace_instant(const char* cat, const char* name) {
+PL_EXPORT void pl_trace_instant(const char* cat, const char* name, pl_instantScope scope) {
     perfetto::DynamicCategory dCat{ cat };
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name));
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope));
 }
 
-PL_EXPORT void pl_trace_instant_double(const char* cat, const char* name, const char* key, double value) {
+PL_EXPORT void pl_trace_instant_double(const char* cat, const char* name, pl_instantScope scope, const char* key, double value) {
     perfetto::DynamicCategory dCat{ cat };
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope),
         [&](perfetto::EventContext ctx) {
             auto* debug = ctx.event()->add_debug_annotations();
             debug->set_name(key);
@@ -243,9 +267,9 @@ PL_EXPORT void pl_trace_instant_double(const char* cat, const char* name, const 
     );
 }
 
-PL_EXPORT void pl_trace_instant_bool(const char* cat, const char* name, const char* key, bool value) {
+PL_EXPORT void pl_trace_instant_bool(const char* cat, const char* name, pl_instantScope scope, const char* key, bool value) {
     perfetto::DynamicCategory dCat{ cat };
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope),
         [&](perfetto::EventContext ctx) {
             auto* debug = ctx.event()->add_debug_annotations();
             debug->set_name(key);
@@ -254,9 +278,9 @@ PL_EXPORT void pl_trace_instant_bool(const char* cat, const char* name, const ch
     );
 }
 
-PL_EXPORT void pl_trace_instant_string(const char* cat, const char* name, const char* key, const char* value) {
+PL_EXPORT void pl_trace_instant_string(const char* cat, const char* name, pl_instantScope scope, const char* key, const char* value) {
     perfetto::DynamicCategory dCat{ cat };
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope),
         [&](perfetto::EventContext ctx) {
             auto* debug = ctx.event()->add_debug_annotations();
             debug->set_name(key);
@@ -265,33 +289,35 @@ PL_EXPORT void pl_trace_instant_string(const char* cat, const char* name, const 
     );
 }
 
-PL_EXPORT void pl_trace_instant_varargs(const char* cat, const char* name, ...) {
+PL_EXPORT void pl_trace_instant_varargs(const char* cat, const char* name, pl_instantScope scope, ...) {
     perfetto::DynamicCategory dCat{ cat };
 
     va_list args;
-    va_start(args, name);
+    va_start(args, scope);
 
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), [&](perfetto::EventContext ctx) {
-        pl_parse_varargs(ctx, &args);
-    });
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope),
+        [&](perfetto::EventContext ctx) {
+            pl_parse_varargs(ctx, &args);
+        }
+    );
 
     va_end(args);
 }
 
-PL_EXPORT void pl_trace_instant_flowStart(const char* cat, const char* name, uint64_t flowID) {
+PL_EXPORT void pl_trace_instant_flowStart(const char* cat, const char* name, pl_instantScope scope, uint64_t flowID) {
     perfetto::DynamicCategory dCat{ cat };
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope),
         perfetto::Flow::ProcessScoped(flowID)
     );
 }
 
-PL_EXPORT void pl_trace_instant_flowStart_varargs(const char* cat, const char* name, uint64_t flowID, ...) {
+PL_EXPORT void pl_trace_instant_flowStart_varargs(const char* cat, const char* name, pl_instantScope scope, uint64_t flowID, ...) {
     perfetto::DynamicCategory dCat{ cat };
 
     va_list args;
     va_start(args, flowID);
 
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope),
         perfetto::Flow::ProcessScoped(flowID),
         [&](perfetto::EventContext ctx) {
             pl_parse_varargs(ctx, &args);
@@ -301,20 +327,20 @@ PL_EXPORT void pl_trace_instant_flowStart_varargs(const char* cat, const char* n
     va_end(args);
 }
 
-PL_EXPORT void pl_trace_instant_flowEnd(const char* cat, const char* name, uint64_t flowID) {
+PL_EXPORT void pl_trace_instant_flowEnd(const char* cat, const char* name, pl_instantScope scope, uint64_t flowID) {
     perfetto::DynamicCategory dCat{ cat };
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope),
         perfetto::TerminatingFlow::ProcessScoped(flowID)
     );
 }
 
-PL_EXPORT void pl_trace_instant_flowEnd_varargs(const char* cat, const char* name, uint64_t flowID, ...) {
+PL_EXPORT void pl_trace_instant_flowEnd_varargs(const char* cat, const char* name, pl_instantScope scope, uint64_t flowID, ...) {
     perfetto::DynamicCategory dCat{ cat };
 
     va_list args;
     va_start(args, flowID);
 
-    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name),
+    TRACE_EVENT_INSTANT(dCat, perfetto::DynamicString(name), pl_getInstantTrack(scope),
         perfetto::TerminatingFlow::ProcessScoped(flowID),
         [&](perfetto::EventContext ctx) {
             pl_parse_varargs(ctx, &args);
